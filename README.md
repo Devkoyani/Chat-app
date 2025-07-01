@@ -2,6 +2,11 @@
 
 A real-time chat application built with MERN stack (MongoDB, Express, React, Node.js) and Socket.io for instant messaging.
 
+--- 
+
+## 🔗 Live Portfolio
+Visit: [https://chatappdev.vercel.app]
+
 ## Features
 
 - 🔐 User authentication (Login/Signup)
