@@ -5,7 +5,7 @@ A real-time chat application built with MERN stack (MongoDB, Express, React, Nod
 --- 
 
 ## 🔗 Live App
-Visit: [https://chatappdev.vercel.app]
+Visit: [devkoyani.vercel.app](https://chatappdev.vercel.app)
 
 ## Features
 
