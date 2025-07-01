@@ -12,10 +12,21 @@ const ChatContainer = () => {
     const { authUser, onlineUsers } = useContext(AuthContext);
 
     const scrollEnd = useRef()
+    const messagesEndRef = useRef()
+    const [isMobile, setIsMobile] = useState(false);
 
     const [input, setInput] = useState('');
     const [uploading, setUploading] = useState(false);
 
+    // Detect mobile devices
+    useEffect(() => {
+        const checkIfMobile = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+        checkIfMobile();
+        window.addEventListener('resize', checkIfMobile);
+        return () => window.removeEventListener('resize', checkIfMobile);
+    }, []);
 
     // Handle sending a message
     const handleSendMessage = async (e) => {
@@ -25,6 +36,9 @@ const ChatContainer = () => {
         const success = await sendMessage({ text: input.trim() });
         if (success) {
           setInput("");
+          setTimeout(() => {
+                scrollToBottom();
+            }, 100);
         } 
     }
 
@@ -47,9 +61,16 @@ const ChatContainer = () => {
                 toast.error("Image failed to send");
             }
             e.target.value = "";
+            setTimeout(() => {
+                scrollToBottom();
+            }, 100);
         })();
         };
         reader.readAsDataURL(file);
+    }
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
 
     useEffect(() => {
@@ -59,10 +80,20 @@ const ChatContainer = () => {
     }, [selectedUser])
 
     useEffect(() => {
-        if(scrollEnd.current && messages){
-            scrollEnd.current.scrollIntoView({behavior: 'smooth'})
-        }
+        scrollToBottom();
     }, [messages])
+
+    // Handle keyboard appearing/disappearing on mobile
+    useEffect(() => {
+        if (!isMobile) return;
+
+        const handleResize = () => {
+            setTimeout(scrollToBottom, 300);
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [isMobile]);
 
   return selectedUser ? (
     <div className="h-full overflow-scroll relative backdrop-blur-lg">
@@ -93,7 +124,12 @@ const ChatContainer = () => {
       </div>
 
       {/* Messages Body */}
-      <div className="flex flex-col h-[calc(100%-110px)] sm:h-[calc(100%-120px)] overflow-y-scroll p-2 sm:p-3 pb-4 sm:pb-6">
+      <div
+        className="flex flex-col h-[calc(100%-110px)] sm:h-[calc(100%-120px)] overflow-y-scroll p-2 sm:p-3 pb-4 sm:pb-6"
+        style={{
+          paddingBottom: isMobile ? "200px" : "inherit", // Extra space for mobile keyboard
+        }}
+      >
         {messages.map((msg) => {
           if (!msg) return null;
           return (
@@ -144,11 +180,11 @@ const ChatContainer = () => {
             <span className="text-xs text-white ml-2">Uploading image...</span>
           </div>
         )}
-        <div ref={scrollEnd}></div>
+        <div ref={messagesEndRef}></div>
       </div>
 
       {/* Message Input */}
-      <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 sm:gap-3 p-2 sm:p-3">
+      <div className={`absolute bottom-0 left-0 right-0 flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-[#8185B2]/10 ${isMobile ? 'sticky bottom-0' : ''}`}>
         <div className="flex-1 flex items-center bg-gray-100/12 px-2 sm:px-3 rounded-full">
           <input
             disabled={uploading}
@@ -181,7 +217,9 @@ const ChatContainer = () => {
           onClick={!uploading ? handleSendMessage : null}
           src={assets.send_button}
           alt=""
-          className={`w-5 sm:w-7 cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`w-5 sm:w-7 cursor-pointer ${
+            uploading ? "opacity-50 cursor-not-allowed" : ""
+          }`}
         />
       </div>
     </div>
