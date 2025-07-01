@@ -12,6 +12,7 @@ const ChatContainer = () => {
     const { authUser, onlineUsers } = useContext(AuthContext);
 
     const inputRef = useRef()
+    const [keyboardWasOpen, setKeyboardWasOpen] = useState(false);
     const messagesEndRef = useRef()
     const [isMobile, setIsMobile] = useState(false);
 
@@ -30,19 +31,18 @@ const ChatContainer = () => {
 
     // Handle sending a message
     const handleSendMessage = async (e) => {
-        e.preventDefault();
-        if(input.trim() === '') return null;
-        const success = await sendMessage({ text: input.trim() });
-        if (success) {
-          setInput("");
-          setTimeout(() => {
-                scrollToBottom();
-                if (document.activeElement === inputRef.current) {
-                inputRef.current?.focus();
-            }
-            }, 100);
-        } 
-    }
+      e.preventDefault();
+      if (input.trim() === "") return null;
+      const success = await sendMessage({ text: input.trim() });
+      if (success) {
+        setInput("");
+        if (keyboardWasOpen && inputRef.current) {
+          requestAnimationFrame(() => {
+            inputRef.current.focus();
+          });
+        }
+      }
+    };
 
     // Handle sending an image
     const handleSendImage = async (e) => {
@@ -72,6 +72,25 @@ const ChatContainer = () => {
         };
         reader.readAsDataURL(file);
     }
+
+    // Track keyboard state
+    useEffect(() => {
+      const handleFocus = () => setKeyboardWasOpen(true);
+      const handleBlur = () => setKeyboardWasOpen(false);
+
+      const input = inputRef.current;
+      if (input) {
+        input.addEventListener('focus', handleFocus);
+        input.addEventListener('blur', handleBlur);
+      }
+
+      return () => {
+        if (input) {
+          input.removeEventListener('focus', handleFocus);
+          input.removeEventListener('blur', handleBlur);
+        }
+      };
+    }, []);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -190,6 +209,7 @@ const ChatContainer = () => {
       <div className={`absolute bottom-0 left-0 right-0 flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-[#8185B2]/10 ${isMobile ? 'sticky bottom-0' : ''}`}>
         <div className="flex-1 flex items-center bg-gray-100/12 px-2 sm:px-3 rounded-full">
           <input
+            ref={inputRef}
             disabled={uploading}
             onChange={(e) => setInput(e.target.value)}
             value={input}
