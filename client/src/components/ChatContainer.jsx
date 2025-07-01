@@ -125,11 +125,7 @@ const ChatContainer = () => {
 
       {/* Messages Body */}
       <div
-        className="flex flex-col h-[calc(100%-110px)] sm:h-[calc(100%-120px)] overflow-y-scroll p-2 sm:p-3 pb-4 sm:pb-6"
-        style={{
-          paddingBottom: isMobile ? "200px" : "inherit", // Extra space for mobile keyboard
-        }}
-      >
+        className="flex flex-col h-[calc(100%-110px)] sm:h-[calc(100%-120px)] overflow-y-scroll p-2 sm:p-3 pb-4 sm:pb-6">
         {messages.map((msg) => {
           if (!msg) return null;
           return (
