@@ -11,7 +11,7 @@ const ChatContainer = () => {
 
     const { authUser, onlineUsers } = useContext(AuthContext);
 
-    const scrollEnd = useRef()
+    const inputRef = useRef()
     const messagesEndRef = useRef()
     const [isMobile, setIsMobile] = useState(false);
 
@@ -32,12 +32,14 @@ const ChatContainer = () => {
     const handleSendMessage = async (e) => {
         e.preventDefault();
         if(input.trim() === '') return null;
-        scrollEnd.current?.scrollIntoView({ behavior: 'smooth' });
         const success = await sendMessage({ text: input.trim() });
         if (success) {
           setInput("");
           setTimeout(() => {
                 scrollToBottom();
+                if (document.activeElement === inputRef.current) {
+                inputRef.current?.focus();
+            }
             }, 100);
         } 
     }
@@ -49,7 +51,6 @@ const ChatContainer = () => {
             toast.error('Please select an image file.');
             return;
         }
-        scrollEnd.current?.scrollIntoView({ behavior: 'smooth' });
         const reader = new FileReader();
 
         reader.onloadend = () => {
@@ -63,6 +64,9 @@ const ChatContainer = () => {
             e.target.value = "";
             setTimeout(() => {
                 scrollToBottom();
+                if (document.activeElement === inputRef.current) {
+                inputRef.current?.focus();
+            }
             }, 100);
         })();
         };
@@ -88,7 +92,10 @@ const ChatContainer = () => {
         if (!isMobile) return;
 
         const handleResize = () => {
-            setTimeout(scrollToBottom, 300);
+            setTimeout(() => {
+                scrollToBottom();
+                inputRef.current?.focus();
+            }, 300);
         };
 
         window.addEventListener('resize', handleResize);
