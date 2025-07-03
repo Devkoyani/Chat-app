@@ -40,6 +40,10 @@ Visit: [devkoyani.vercel.app](https://chatappdev.vercel.app)
 - Nodemon (Server auto-reload)
 - Dotenv (Environment variables)
 
+## 🚀 Deployment
+- Backend: Deploy to Render
+- Frontend: Deploy to Vercel
+
 ## Installation
 
 1. **Clone the repository**
