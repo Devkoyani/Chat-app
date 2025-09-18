@@ -49,6 +49,10 @@ app.use(morgan("dev"));
 app.use(express.json({limit: "4mb"}));
 
 // Routes setup
+app.get("/", (req, res) => {
+  res.send("✅ Chat App Backend is running");
+});
+
 app.use("/api/status", (req, res) => {
     res.status(200).send("Server is Live");
 })
