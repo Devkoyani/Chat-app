@@ -8,7 +8,15 @@ import { AuthContext } from '../context/AuthContext'
 
 const App = () => {
 
-  const { authUser } = useContext(AuthContext);
+  const { authUser, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-800 text-white">
+        <div className="w-16 h-16 border-4 border-t-transparent border-blue-500 rounded-full animate-spin"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="bg-[url('/bgImage.svg')] bg-contain">

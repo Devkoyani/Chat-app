@@ -152,6 +152,13 @@ export const sendMessage = async (req, res) => {
         const receiverId = req.params.id;
         const senderId = req.user._id;
 
+        if (!text && !image) {
+            return res.status(400).json({
+                success: false,
+                message: "Cannot send an empty message"
+            });
+        }
+
         let imageUrl;
         if (image) {
             try {
@@ -201,5 +208,60 @@ export const sendMessage = async (req, res) => {
             success: false,
             message: "Internal server error",
         });
+    }
+}
+
+// React to a message
+export const reactToMessage = async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { emoji } = req.body;
+        const userId = req.user._id;
+
+        if (!emoji) {
+            return res.status(400).json({ success: false, message: "Emoji is required" });
+        }
+
+        const message = await Message.findById(messageId);
+
+        if (!message) {
+            return res.status(404).json({ success: false, message: "Message not found" });
+        }
+
+        const existingReactionIndex = message.reactions.findIndex(
+            (reaction) => reaction.user.equals(userId) && reaction.emoji === emoji
+        );
+
+        if (existingReactionIndex > -1) {
+            // User has already reacted with this emoji, so remove it
+            message.reactions.splice(existingReactionIndex, 1);
+        } else {
+            // Add new reaction
+            message.reactions.push({ emoji, user: userId });
+        }
+
+        await message.save();
+
+        // Emit real-time update to both sender and receiver
+        const senderSocketId = userSocketMap[message.senderId.toString()];
+        const receiverSocketId = userSocketMap[message.receiverId.toString()];
+
+        const reactionUpdate = {
+            messageId: message._id,
+            reactions: message.reactions,
+        };
+
+        if (senderSocketId) {
+            io.to(senderSocketId).emit("messageReactionUpdate", reactionUpdate);
+        }
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("messageReactionUpdate", reactionUpdate);
+        }
+
+        res.json({ success: true, reactions: message.reactions });
+
+    } catch (error) {
+        console.log("ReactToMessage Error:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
     }
 }

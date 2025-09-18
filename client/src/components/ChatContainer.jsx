@@ -1,13 +1,17 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import assets from '../assets/assets'
-import { formatMessageTime } from '../lib/utils'
+import { formatMessageTime, formatDateHeader } from '../lib/utils'
 import { ChatContext } from '../../context/ChatContext'
 import { AuthContext } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
+import Picker from '@emoji-mart/react'
+import { BsEmojiSmile } from 'react-icons/bs';
+
+import { useClickOutside } from '../lib/hooks';
 
 const ChatContainer = () => {
 
-    const { messages, selectedUser, setSelectedUser, sendMessage, getMessages } = useContext(ChatContext);
+    const { messages, selectedUser, setSelectedUser, sendMessage, getMessages, reactToMessage } = useContext(ChatContext);
 
     const { authUser, onlineUsers } = useContext(AuthContext);
 
@@ -18,6 +22,12 @@ const ChatContainer = () => {
 
     const [input, setInput] = useState('');
     const [uploading, setUploading] = useState(false);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [showReactionPaletteFor, setShowReactionPaletteFor] = useState(null);
+
+    const emojiPickerRef = useRef(null);
+    useClickOutside(emojiPickerRef, () => setShowEmojiPicker(false));
+    useClickOutside(emojiPickerRef, () => setShowReactionPaletteFor(false));
 
     // Detect mobile devices
     useEffect(() => {
@@ -42,6 +52,11 @@ const ChatContainer = () => {
           });
         }
       }
+    };
+
+    const handleReaction = (messageId, emoji) => {
+        reactToMessage(messageId, emoji);
+        setShowReactionPaletteFor(null);
     };
 
     // Handle sending an image
@@ -152,49 +167,82 @@ const ChatContainer = () => {
       {/* Messages Body */}
       <div
         className="flex flex-col h-[calc(100%-110px)] sm:h-[calc(100%-120px)] overflow-y-scroll p-2 sm:p-3 pb-4 sm:pb-6">
-        {messages.map((msg) => {
-          if (!msg) return null;
-          return (
-            <div
-              key={msg._id}
-              className={`flex items-end gap-2 justify-end ${
-                msg.senderId !== authUser._id && "flex-row-reverse"
-              }`}
-            >
-              {msg.image ? (
-                <img
-                  src={msg.image}
-                  alt=""
-                  className="max-w-[180px] sm:max-w-[230px] border border-gray-700 rounded-lg overflow-hidden mb-3 sm:mb-4"
-                />
-              ) : (
-                <p
-                  className={`p-2 max-w-[150px] sm:max-w-[200px] text-xs sm:text-sm font-light rounded-lg mb-3 sm:mb-4 break-all bg-violet-500/30 text-white ${
-                    msg.senderId === authUser._id
-                      ? "rounded-br-none"
-                      : "rounded-bl-none"
-                  }`}
-                >
-                  {msg.text}
-                </p>
-              )}
-              <div className="text-center text-[10px] sm:text-xs">
-                <img
-                  src={
-                    msg.senderId === authUser._id
-                      ? authUser?.profilePic || assets.avatar_icon
-                      : selectedUser?.profilePic || assets.avatar_icon
-                  }
-                  alt=""
-                  className="w-5 sm:w-7 rounded-full"
-                />
-                <p className="text-gray-500">
-                  {formatMessageTime(msg.createdAt)}
-                </p>
+        {messages.reduce((acc, msg, index) => {
+          if (!msg) return acc;
+
+          const currentDate = new Date(msg.createdAt).toDateString();
+          const prevDate = index > 0 ? new Date(messages[index - 1].createdAt).toDateString() : null;
+
+          if (currentDate !== prevDate) {
+            acc.push(
+              <div key={currentDate} className="flex justify-center my-2">
+                <span className="bg-gray-700 text-white text-xs font-bold px-3 py-1 rounded-full">
+                  {formatDateHeader(msg.createdAt)}
+                </span>
               </div>
+            );
+          }
+
+          // Group reactions by emoji
+          const reactionGroups = msg.reactions?.reduce((groups, reaction) => {
+            const emoji = reaction.emoji;
+            if (!groups[emoji]) {
+              groups[emoji] = [];
+            }
+            groups[emoji].push(reaction.user);
+            return groups;
+          }, {});
+
+          acc.push(
+            <div key={msg._id} className="flex flex-col items-end group">
+                <div className={`flex items-end gap-2 justify-end w-full ${
+                    msg.senderId !== authUser._id && "flex-row-reverse"
+                }`}>
+                    <div className="relative">
+                        {msg.image ? (
+                            <img src={msg.image} alt="" className="max-w-[180px] sm:max-w-[230px] border border-gray-700 rounded-lg overflow-hidden mb-1" />
+                        ) : (
+                            <p className={`p-2 max-w-[150px] sm:max-w-[200px] text-xs sm:text-sm font-light rounded-lg mb-1 break-all bg-violet-500/30 text-white ${
+                                msg.senderId === authUser._id ? "rounded-br-none" : "rounded-bl-none"
+                            }`}>
+                            {msg.text}
+                            </p>
+                        )}
+                        <div className={`absolute top-1/2 -translate-y-1/2 items-center gap-1 flex opacity-20 group-hover:opacity-100 ${
+                            msg.senderId === authUser._id ? "-left-8" : "-right-8"
+                        }`}>
+                            <BsEmojiSmile className="w-4 cursor-pointer text-gray-400" onClick={() => setShowReactionPaletteFor(showReactionPaletteFor === msg._id ? null : msg._id)} />
+                        </div>
+
+                        {showReactionPaletteFor === msg._id && (
+                            <div ref={emojiPickerRef} className={`absolute bottom-full mb-2 flex gap-1 bg-gray-800 p-1 rounded-full z-10 ${
+                                msg.senderId === authUser._id ? 'right-0' : 'left-0'
+                            }`}>
+                                {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                                    <span key={emoji} className="cursor-pointer text-lg" onClick={() => handleReaction(msg._id, emoji)}>{emoji}</span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div className="text-center text-[10px] sm:text-xs">
+                        <img src={msg.senderId === authUser._id ? authUser?.profilePic || assets.avatar_icon : selectedUser?.profilePic || assets.avatar_icon} alt="" className="w-5 sm:w-7 rounded-full" />
+                        <p className="text-gray-500">{formatMessageTime(msg.createdAt)}</p>
+                    </div>
+                </div>
+                {reactionGroups && Object.keys(reactionGroups).length > 0 && (
+                    <div className="flex gap-1 mt-1 pr-8">
+                        {Object.entries(reactionGroups).map(([emoji, users]) => (
+                            <div key={emoji} className="flex items-center bg-gray-700/50 rounded-full px-2 py-0.5 text-xs">
+                                <span>{emoji}</span>
+                                <span className="ml-1 text-white">{users.length}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
           );
-        })}
+          return acc;
+        }, [])}
         {/* Loader (Image uploading spinner) */}
         {uploading && (
           <div className="flex justify-center items-center py-2">
@@ -206,8 +254,14 @@ const ChatContainer = () => {
       </div>
 
       {/* Message Input */}
-      <div className={`absolute bottom-0 left-0 right-0 flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-[#8185B2]/10 ${isMobile ? 'sticky bottom-0' : ''}`}>
+      <div className={`relative flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-[#8185B2]/10`}>
+        {showEmojiPicker && (
+            <div ref={emojiPickerRef} className="absolute bottom-full mb-2 z-10 right-0 sm:left-0 sm:right-auto">
+                <Picker onEmojiSelect={(e) => setInput(input + e.native)} theme="dark" />
+            </div>
+        )}
         <div className="flex-1 flex items-center bg-gray-100/12 px-2 sm:px-3 rounded-full">
+          <BsEmojiSmile className="w-5 h-5 cursor-pointer text-gray-400" onClick={() => setShowEmojiPicker(!showEmojiPicker)} />
           <input
             ref={inputRef}
             disabled={uploading}
@@ -216,34 +270,14 @@ const ChatContainer = () => {
             onKeyDown={(e) => (e.key === "Enter" ? handleSendMessage(e) : null)}
             type="text"
             placeholder="Send a message..."
-            className="flex-1 text-xs sm:text-sm p-2 sm:p-3 border-none rounded-lg outline-none text-white placeholder-gray-400"
+            className="flex-1 text-xs sm:text-sm p-2 sm:p-3 border-none bg-transparent rounded-lg outline-none text-white placeholder-gray-400"
           />
-          <input
-            disabled={uploading}
-            onChange={handleSendImage}
-            type="file"
-            id="image"
-            accept="image/png, image/jpeg, image/jpg"
-            hidden
-          />
+          <input disabled={uploading} onChange={handleSendImage} type="file" id="image" accept="image/png, image/jpeg, image/jpg" hidden />
           <label htmlFor="image">
-            <img
-              src={assets.gallery_icon}
-              alt=""
-              className={`w-4 sm:w-5 mr-1 sm:mr-2 cursor-pointer ${
-                uploading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-            />
+            <img src={assets.gallery_icon} alt="" className={`w-4 sm:w-5 mr-1 sm:mr-2 cursor-pointer ${uploading ? "opacity-50 cursor-not-allowed" : ""}`} />
           </label>
         </div>
-        <img
-          onClick={!uploading ? handleSendMessage : null}
-          src={assets.send_button}
-          alt=""
-          className={`w-5 sm:w-7 cursor-pointer ${
-            uploading ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-        />
+        <img onClick={!uploading ? handleSendMessage : null} src={assets.send_button} alt="" className={`w-5 sm:w-7 cursor-pointer ${uploading ? "opacity-50 cursor-not-allowed" : ""}`} />
       </div>
     </div>
   ) : (

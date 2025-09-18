@@ -59,12 +59,21 @@ export const ChatProvider = ({ children }) => {
       }
     };
 
-    // function to subscribe to messages for selected user
-    const subscribeToMessages = async () => {
+    // function to react to a message
+    const reactToMessage = async (messageId, emoji) => {
+        try {
+            await axios.post(`/api/messages/${messageId}/react`, { emoji });
+            // The real-time listener below will handle the UI update
+        } catch (error) {
+            toast.error(error.message);
+        }
+    };
+
+    // function to subscribe to messages and reactions
+    const subscribeToEvents = () => {
       if (!socket) return;
 
       socket.on("newMessage", (newMessage) => {
-        // Check if this message is already in state
         setMessages((prevMessages) => {
           if (prevMessages.some((msg) => msg._id === newMessage._id)) {
             return prevMessages;
@@ -75,26 +84,35 @@ export const ChatProvider = ({ children }) => {
             axios.put(`/api/messages/mark/${newMessage._id}`);
             return [...prevMessages, newMessage];
           } else {
-            setUnseenMessages((prevUnseenMessages) => ({
-              ...prevUnseenMessages,
-              [newMessage.senderId]:
-                (prevUnseenMessages[newMessage.senderId] || 0) + 1,
+            setUnseenMessages((prevUnseen) => ({
+              ...prevUnseen,
+              [newMessage.senderId]: (prevUnseen[newMessage.senderId] || 0) + 1,
             }));
             return prevMessages;
           }
         });
       });
+
+      socket.on("messageReactionUpdate", ({ messageId, reactions }) => {
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) =>
+            msg._id === messageId ? { ...msg, reactions } : msg
+          )
+        );
+      });
     };
 
-    // function to unsubscribe from messages for selected user
-    const unsubscribeFromMessages = async () => {
-        if(socket)
-        socket.off('newMessage');
+    // function to unsubscribe from events
+    const unsubscribeFromEvents = () => {
+        if(socket) {
+            socket.off('newMessage');
+            socket.off('messageReactionUpdate');
+        }
     }
 
     useEffect(() => {
-        subscribeToMessages();
-        return () => unsubscribeFromMessages();
+        subscribeToEvents();
+        return () => unsubscribeFromEvents();
     }, [socket, selectedUser]);
 
     const value = {
@@ -104,6 +122,7 @@ export const ChatProvider = ({ children }) => {
         getUsers,
         getMessages,
         sendMessage,
+        reactToMessage, // export new function
         setSelectedUser,       
         unseenMessages,
         setUnseenMessages,

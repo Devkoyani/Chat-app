@@ -13,6 +13,7 @@ export const AuthProvider = ({ children }) => {
     const [authUser, setAuthUser] = useState(null);
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [socket, setSocket] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     // Check if user is authenticated and if so, set the user data and connect the socket
     const checkAuth = async () => {
@@ -24,6 +25,12 @@ export const AuthProvider = ({ children }) => {
             }
         } catch (error) {
            toast.error(error.message);
+           // If check fails, remove the invalid token
+           localStorage.removeItem('token');
+           setToken(null);
+           setAuthUser(null);
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -93,8 +100,10 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
       if (token) {
         axios.defaults.headers.common["token"] = token;
+        checkAuth();
+      } else {
+        setLoading(false);
       }
-      checkAuth();
     }, [token]);
 
     const value = {
@@ -104,7 +113,8 @@ export const AuthProvider = ({ children }) => {
         socket,
         login,
         logout,
-        updateProfile
+        updateProfile,
+        loading
     }
 
     return (
